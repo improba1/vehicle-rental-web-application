@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Положение автомобилей</title>
+  <style>#map { height: 90vh; width: 100%; }</style>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+</head>
+<body>
+  <h2>Положение автомобилей</h2>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').setView([51.25, 22.57], 13); // Центр Люблина
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    let markers = [];
+
+    async function fetchAndUpdateVehicles() {
+      try {
+        const token = localStorage.getItem('jwtToken');
+        const res = await fetch('/api/vehicles/locations', {
+          headers: {
+            'Authorization': 'Bearer ' + token
+          }
+        });
+
+        if (!res.ok) throw new Error('Ошибка загрузки данных: ' + res.status);
+
+        const vehicles = await res.json();
+
+        // Удаление старых маркеров
+        markers.forEach(marker => map.removeLayer(marker));
+        markers = [];
+
+        // Добавление новых маркеров
+        vehicles.forEach(vehicle => {
+          const marker = L.marker([vehicle.latitude, vehicle.longitude])
+            .bindPopup(`<b>${vehicle.id || "Vehicle"}</b><br/>${vehicle.plateNumber || ""}`);
+          marker.addTo(map);
+          markers.push(marker);
+        });
+
+      } catch (err) {
+        console.error('Ошибка:', err);
+      }
+    }
+
+    // Первый вызов сразу
+    fetchAndUpdateVehicles();
+
+    // Автоматическое обновление каждые 10 секунд
+    setInterval(fetchAndUpdateVehicles, 10000);
+  </script>
+</body>
+</html>
